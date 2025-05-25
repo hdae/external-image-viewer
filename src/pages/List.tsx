@@ -1,13 +1,14 @@
 import { ArrowLeftIcon, ArrowRightIcon, DoubleArrowLeftIcon, DoubleArrowRightIcon } from "@radix-ui/react-icons"
 import { Flex, IconButton, Text } from "@radix-ui/themes"
 import { useQuery } from "@tanstack/react-query"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, type RefCallback } from "react"
 import { useNavigate, useParams } from "react-router"
+import { useSwipeable } from "react-swipeable"
 import { z } from "zod"
 import { api_config } from "../../worker/config"
 import { client } from "../client"
+import { ImageDialog } from "../components/ImageDialog"
 import { getThumbsUrl } from "../utils/url"
-import { ImageDialog } from "./ImageDialog"
 
 const paramSchema = z.object({
     bucket_id: z.coerce.number(),
@@ -30,6 +31,7 @@ export const List = () => {
         navigate(`/${bucket_id}/0`)
     }
 
+    const isFirst = page <= 0
     const isLast = (data?.total ?? 0) <= (page + 1) * api_config.list_limit
 
     const [currentIndex, setCurrentIndex] = useState<number>()
@@ -37,19 +39,43 @@ export const List = () => {
         ? currentIndex
         : data?.images.at(currentIndex)
 
+    const prev = useCallback(
+        () => {
+            if (isFirst || current !== undefined) return
+            navigate(`/${bucket_id}/${page - 1}`)
+        },
+        [bucket_id, current, isFirst, navigate, page]
+    )
 
-    const prev = useCallback(() => navigate(`/${bucket_id}/${page - 1}`), [bucket_id, navigate, page])
-    const next = useCallback(() => navigate(`/${bucket_id}/${page + 1}`), [bucket_id, navigate, page])
+    const next = useCallback(
+        () => {
+            if (isLast || current !== undefined) return
+            navigate(`/${bucket_id}/${page + 1}`)
+        },
+        [bucket_id, current, isLast, navigate, page]
+    )
 
     const first = useCallback(() => navigate(`/${bucket_id}/0`), [bucket_id, navigate])
     const last = useCallback(() => navigate(`/${bucket_id}/${Math.floor((data?.total ?? 0) / api_config.list_limit)}`), [navigate, bucket_id, data?.total])
 
     const onKeyDown = useCallback((ev: KeyboardEvent) => {
-        // Ignore when open dialog.
-        if (current !== undefined) return
         if (ev.key == "ArrowLeft") prev()
         if (ev.key == "ArrowRight") next()
-    }, [current, next, prev])
+    }, [next, prev])
+
+    const { ref } = useSwipeable({
+        onSwipedLeft: next,
+        onSwipedRight: prev,
+        trackMouse: false,
+        trackTouch: true,
+    }) as { ref: RefCallback<Document | undefined> }
+
+    useEffect(() => {
+        ref(document)
+        return () => {
+            ref(undefined)
+        }
+    }, [ref])
 
     useEffect(() => {
         window.addEventListener("keydown", onKeyDown)
@@ -82,14 +108,14 @@ export const List = () => {
                 <IconButton
                     size="3"
                     onClick={first}
-                    disabled={page <= 0}
+                    disabled={isFirst}
                 >
                     <DoubleArrowLeftIcon width={20} height={20} />
                 </IconButton>
                 <IconButton
                     size="3"
                     onClick={prev}
-                    disabled={page <= 0}
+                    disabled={isFirst}
                 >
                     <ArrowLeftIcon width={20} height={20} />
                 </IconButton>
@@ -153,7 +179,7 @@ export const List = () => {
                 </Flex>
             )}
             {data !== undefined && current !== undefined && (
-                <ImageDialog image={current} setCurrentIndex={setCurrentIndex} max={data.images.length} />
+                <ImageDialog image={current} setCurrentIndex={setCurrentIndex} total={data.images.length} />
             )}
         </>
     )

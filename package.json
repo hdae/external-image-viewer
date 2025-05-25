@@ -23,6 +23,7 @@
 		"react-dom": "^19.1.0",
 		"react-hot-toast": "^2.5.2",
 		"react-router": "^7.6.1",
+		"react-swipeable": "^7.0.2",
 		"ress": "^5.0.2",
 		"wasm-image-optimization": "^1.2.30",
 		"zod": "^3.25.28"

@@ -1,8 +1,9 @@
 import { CopyIcon, Cross1Icon, DownloadIcon, OpenInNewWindowIcon } from "@radix-ui/react-icons"
 import { Badge, DataList, Dialog, Flex, IconButton, ScrollArea, Tooltip } from "@radix-ui/themes"
 // import { Dialog } from "radix-ui"
-import { useCallback, useEffect, useMemo, type Dispatch, type FC, type SetStateAction } from "react"
+import { useCallback, useEffect, useMemo, type Dispatch, type FC, type RefCallback, type SetStateAction } from "react"
 import { toast } from "react-hot-toast"
+import { useSwipeable } from "react-swipeable"
 import type { Metadata } from "../../worker/types"
 import { getDownloadUrl, getRawUrl } from "../utils/url"
 
@@ -16,10 +17,10 @@ type Props = {
         bucket_id: number | null
     }
     setCurrentIndex: Dispatch<SetStateAction<number | undefined>>
-    max: number
+    total: number
 }
 
-export const ImageDialog: FC<Props> = ({ image, setCurrentIndex }) => {
+export const ImageDialog: FC<Props> = ({ image, setCurrentIndex, total }) => {
 
     const newtab = useCallback(() => { }, [])
     const download = useCallback(() => window.open(getDownloadUrl(image.hash)), [image.hash])
@@ -40,17 +41,31 @@ export const ImageDialog: FC<Props> = ({ image, setCurrentIndex }) => {
 
     const next = useCallback(() =>
         setCurrentIndex(index => (
-            index === undefined || index
+            index === undefined || index >= total - 1
                 ? index
                 : index + 1
         )),
-        [setCurrentIndex]
+        [total, setCurrentIndex]
     )
 
     const onKeyDown = useCallback((ev: KeyboardEvent) => {
         if (ev.key == "ArrowLeft") prev()
         if (ev.key == "ArrowRight") next()
     }, [next, prev])
+
+    const { ref } = useSwipeable({
+        onSwipedLeft: next,
+        onSwipedRight: prev,
+        trackMouse: false,
+        trackTouch: true,
+    }) as { ref: RefCallback<Document | undefined> }
+
+    useEffect(() => {
+        ref(document)
+        return () => {
+            ref(undefined)
+        }
+    }, [ref])
 
     useEffect(() => {
         window.addEventListener("keydown", onKeyDown)
