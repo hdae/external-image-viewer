@@ -1,11 +1,10 @@
-import { CopyIcon, Cross1Icon, DownloadIcon, OpenInNewWindowIcon } from "@radix-ui/react-icons"
-import { Badge, DataList, Dialog, Flex, IconButton, ScrollArea, Tooltip } from "@radix-ui/themes"
-// import { Dialog } from "radix-ui"
-import { useCallback, useEffect, useMemo, type Dispatch, type FC, type RefCallback, type SetStateAction } from "react"
-import { toast } from "react-hot-toast"
+import { Cross1Icon, DownloadIcon, OpenInNewWindowIcon } from "@radix-ui/react-icons"
+import { Dialog, Flex, IconButton, ScrollArea, Tooltip } from "@radix-ui/themes"
+import { useCallback, useEffect, type Dispatch, type FC, type RefCallback, type SetStateAction } from "react"
 import { useSwipeable } from "react-swipeable"
 import type { Metadata } from "../../worker/types"
 import { getDownloadUrl, getRawUrl } from "../utils/url"
+import { MetadataList } from "./MetadataList"
 
 type Props = {
     image: {
@@ -155,123 +154,3 @@ export const ImageDialog: FC<Props> = ({ image, setCurrentIndex, total }) => {
         </Dialog.Root>
     )
 }
-
-export const MetadataList: FC<{ metadata: Metadata }> = ({ metadata }) => {
-    return (
-        <DataList.Root orientation="vertical">
-            <DataList.Item>
-                <DataList.Label minWidth="88px">
-                    <Flex
-                        direction="row"
-                        gap="2"
-                        align="center"
-                    >
-                        Positive
-                        <CopyButton prompts={metadata.positive} />
-                    </Flex>
-                </DataList.Label>
-                <DataList.Value>
-                    <Flex
-                        direction="column"
-                        gap="1"
-                    >
-                        {metadata.positive?.map(line => (
-                            <RenderTags tags={line} />
-                        ))}
-                    </Flex>
-                </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-                <DataList.Label minWidth="88px">
-                    <Flex
-                        direction="row"
-                        gap="2"
-                        align="center"
-                    >
-                        Negative
-                        <CopyButton prompts={metadata.negative} />
-                    </Flex>
-                </DataList.Label>
-                <DataList.Value>
-                    <Flex
-                        direction="column"
-                        gap="1"
-                    >
-                        {metadata.negative?.map(line => (
-                            <RenderTags tags={line} />
-                        ))}
-                    </Flex>
-                </DataList.Value>
-            </DataList.Item>
-            {metadata.param?.map(param => {
-                const [key, value] = param.split(": ")
-                return (
-                    <DataList.Item key={key}>
-                        <DataList.Label minWidth="88px">
-                            <Flex
-                                direction="row"
-                                gap="2"
-                                align="center"
-                            >
-                                {key}
-                            </Flex>
-                        </DataList.Label>
-                        <DataList.Value>
-                            {value}
-                        </DataList.Value>
-                    </DataList.Item>
-                )
-            })}
-        </DataList.Root>
-    )
-}
-
-const copyToClipboard = (text: string) => {
-    toast.promise(navigator.clipboard.writeText(text), {
-        loading: "Copying",
-        error: "Copy failed",
-        success: "Copied"
-    })
-}
-
-const RenderTags: FC<{ tags: string }> = ({ tags }) => {
-    const children = useMemo(() => tags
-        .split(",")
-        .map(v => v.trim())
-        .filter(v => v !== "").map(token => (
-            <Badge
-                color={token === "BREAK" ? "red" : undefined}
-                size="2"
-            >
-                {token}
-            </Badge>
-        )),
-        [tags]
-    )
-
-    return (
-        <Flex
-            direction="row"
-            gap="1"
-            wrap="wrap"
-        >
-            {children}
-        </Flex>
-    )
-}
-
-const CopyButton: FC<{ prompts: string[] | undefined }> = ({ prompts }) => (
-    <Tooltip
-        content="Copy"
-    >
-        <IconButton
-            size="1"
-            color="gray"
-            variant="ghost"
-            onClick={() => prompts !== undefined && copyToClipboard(prompts.join("\n"))}
-            disabled={prompts === undefined}
-        >
-            <CopyIcon />
-        </IconButton>
-    </Tooltip>
-)

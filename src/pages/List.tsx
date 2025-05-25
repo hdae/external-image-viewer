@@ -55,8 +55,15 @@ export const List = () => {
         [bucket_id, current, isLast, navigate, page]
     )
 
-    const first = useCallback(() => navigate(`/${bucket_id}/0`), [bucket_id, navigate])
-    const last = useCallback(() => navigate(`/${bucket_id}/${Math.floor((data?.total ?? 0) / api_config.list_limit)}`), [navigate, bucket_id, data?.total])
+    const first = useCallback(
+        () => navigate(`/${bucket_id}/0`),
+        [bucket_id, navigate]
+    )
+
+    const last = useCallback(
+        () => navigate(`/${bucket_id}/${Math.floor((data?.total ?? 0) / api_config.list_limit)}`),
+        [navigate, bucket_id, data?.total]
+    )
 
     const onKeyDown = useCallback((ev: KeyboardEvent) => {
         if (ev.key == "ArrowLeft") prev()
@@ -85,14 +92,10 @@ export const List = () => {
     useEffect(() => {
         if (data === undefined) return
         if (data.images.length >= api_config.list_limit) {
-            const id = setInterval(() => {
-                refetch()
-            }, 30000)
+            const id = setInterval(refetch, 30000)
             return () => clearInterval(id)
         } else {
-            const id = setInterval(() => {
-                refetch()
-            }, 5000)
+            const id = setInterval(refetch, 5000)
             return () => clearInterval(id)
         }
     }, [data, refetch])
@@ -179,7 +182,11 @@ export const List = () => {
                 </Flex>
             )}
             {data !== undefined && current !== undefined && (
-                <ImageDialog image={current} setCurrentIndex={setCurrentIndex} total={data.images.length} />
+                <ImageDialog
+                    image={current}
+                    setCurrentIndex={setCurrentIndex}
+                    total={data.images.length}
+                />
             )}
         </>
     )
