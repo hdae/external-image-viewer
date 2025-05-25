@@ -23,8 +23,8 @@ export const MetadataList: FC<{ metadata: Metadata }> = ({ metadata }) => {
                         direction="column"
                         gap="1"
                     >
-                        {metadata.positive?.map(line => (
-                            <RenderTags tags={line} />
+                        {metadata.positive?.map((line, index) => (
+                            <RenderTags key={index} tags={line} />
                         ))}
                     </Flex>
                 </DataList.Value>
@@ -45,8 +45,8 @@ export const MetadataList: FC<{ metadata: Metadata }> = ({ metadata }) => {
                         direction="column"
                         gap="1"
                     >
-                        {metadata.negative?.map(line => (
-                            <RenderTags tags={line} />
+                        {metadata.negative?.map((line, index) => (
+                            <RenderTags key={index} tags={line} />
                         ))}
                     </Flex>
                 </DataList.Value>

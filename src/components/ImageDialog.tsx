@@ -1,9 +1,10 @@
-import { Cross1Icon, DownloadIcon, OpenInNewWindowIcon } from "@radix-ui/react-icons"
+import { Cross1Icon } from "@radix-ui/react-icons"
 import { Dialog, Flex, IconButton, ScrollArea, Tooltip } from "@radix-ui/themes"
 import { useCallback, useEffect, type Dispatch, type FC, type RefCallback, type SetStateAction } from "react"
 import { useSwipeable } from "react-swipeable"
 import type { Metadata } from "../../worker/types"
-import { getDownloadUrl, getRawUrl } from "../utils/url"
+import { usePortrait } from "../hooks/usePortrait"
+import { ImagePreview } from "./Image"
 import { MetadataList } from "./MetadataList"
 
 type Props = {
@@ -20,10 +21,6 @@ type Props = {
 }
 
 export const ImageDialog: FC<Props> = ({ image, setCurrentIndex, total }) => {
-
-    const newtab = useCallback(() => { }, [])
-    const download = useCallback(() => window.open(getDownloadUrl(image.hash)), [image.hash])
-
     const close = useCallback(
         () => setCurrentIndex(undefined),
         [setCurrentIndex]
@@ -71,6 +68,8 @@ export const ImageDialog: FC<Props> = ({ image, setCurrentIndex, total }) => {
         return () => window.removeEventListener("keydown", onKeyDown)
     }, [onKeyDown])
 
+    const portrait = usePortrait()
+
     return (
         <Dialog.Root
             open
@@ -86,70 +85,107 @@ export const ImageDialog: FC<Props> = ({ image, setCurrentIndex, total }) => {
                     maxHeight: "calc(100vh - var(--space-6) - max(var(--space-6), 6vh))",
                 }}
             >
-                {/* <ScrollArea type="scroll" scrollbars="vertical"> */}
-                <Flex
-                    direction="row"
-                    gap="5"
-                >
-                    <Dialog.Title hidden>
-                        Image Preview
-                    </Dialog.Title>
+                {portrait ? (
+                    <ScrollArea type="scroll" scrollbars="vertical">
+                        <Flex
+                            direction="column"
+                            gap="5"
+                        >
+                            <Dialog.Title hidden>
+                                Image Preview
+                            </Dialog.Title>
+                            <Flex
+                                flexGrow="2"
+                                flexShrink="2"
+                                flexBasis="0"
+                                align="center"
+                                justify="center"
+                            >
+                                <ImagePreview
+                                    hash={image.hash}
+                                    width={image.metadata.width}
+                                    height={image.metadata.height}
+                                />
+                            </Flex>
+                            <Flex
+                                flexGrow="1"
+                                flexShrink="1"
+                                flexBasis="0"
+                                maxWidth="480px"
+                                direction="column"
+                                gap="4"
+                                pt="8"
+                                asChild
+                            >
+                                <MetadataList metadata={image.metadata} />
+                            </Flex>
+                            <Flex
+                                position="absolute"
+                                top="4"
+                                right="4"
+                                direction="row"
+                                justify="end"
+                                gap="4"
+                            >
+                                <Tooltip content="Close">
+                                    <IconButton onClick={close}>
+                                        <Cross1Icon width="20" height="20" />
+                                    </IconButton>
+                                </Tooltip>
+                            </Flex>
+                        </Flex>
+                    </ScrollArea>
+                ) : (
                     <Flex
-                        flexGrow="2"
-                        flexShrink="2"
-                        flexBasis="0"
-                        align="center"
-                        justify="center"
-                    >
-                        <img
-                            src={getRawUrl(image.hash)}
-                            style={{
-                                height: "100%",
-                                width: "100%",
-                                objectFit: "contain",
-                            }}
-                        />
-                    </Flex>
-                    <Flex
-                        flexGrow="1"
-                        flexShrink="1"
-                        flexBasis="0"
-                        maxWidth="480px"
-                        direction="column"
-                        gap="4"
-                        pt="8"
-                        asChild
-                    >
-                        <ScrollArea type="hover" scrollbars="vertical">
-                            <MetadataList metadata={image.metadata} />
-                        </ScrollArea>
-                    </Flex>
-                    <Flex
-                        position="absolute"
-                        top="5"
-                        right="6"
                         direction="row"
-                        justify="end"
-                        gap="4"
+                        gap="5"
                     >
-                        <Tooltip content="Open in Tab">
-                            <IconButton onClick={newtab}>
-                                <OpenInNewWindowIcon width="20" height="20" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip content="Download">
-                            <IconButton onClick={download}>
-                                <DownloadIcon width="20" height="20" />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip content="Close">
-                            <IconButton onClick={close}>
-                                <Cross1Icon width="20" height="20" />
-                            </IconButton>
-                        </Tooltip>
+                        <Dialog.Title hidden>
+                            Image Preview
+                        </Dialog.Title>
+                        <Flex
+                            flexGrow="2"
+                            flexShrink="2"
+                            flexBasis="0"
+                            align="center"
+                            justify="center"
+                        >
+                            <ImagePreview
+                                hash={image.hash}
+                                width={image.metadata.width}
+                                height={image.metadata.height}
+                            />
+                        </Flex>
+                        <Flex
+                            flexGrow="1"
+                            flexShrink="1"
+                            flexBasis="0"
+                            maxWidth="480px"
+                            direction="column"
+                            gap="4"
+                            pt="8"
+                            asChild
+                        >
+                            <ScrollArea type="hover" scrollbars="vertical">
+                                <MetadataList metadata={image.metadata} />
+                            </ScrollArea>
+                        </Flex>
+                        <Flex
+                            position="absolute"
+                            top="4"
+                            right="4"
+                            direction="row"
+                            justify="end"
+                            gap="4"
+                        >
+                            <Tooltip content="Close">
+                                <IconButton onClick={close}>
+                                    <Cross1Icon width="20" height="20" />
+                                </IconButton>
+                            </Tooltip>
+                        </Flex>
                     </Flex>
-                </Flex>
-                {/* </ScrollArea> */}
+                )}
             </Dialog.Content>
         </Dialog.Root>
     )

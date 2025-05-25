@@ -5,8 +5,9 @@ export const RenderTags: FC<{ tags: string }> = ({ tags }) => {
     const children = useMemo(() => tags
         .split(",")
         .map(v => v.trim())
-        .filter(v => v !== "").map(token => (
+        .filter(v => v !== "").map((token, index) => (
             <Badge
+                key={index}
                 color={token === "BREAK" ? "red" : undefined}
                 size="2"
             >
