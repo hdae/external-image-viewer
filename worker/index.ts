@@ -114,42 +114,24 @@ const app = new Hono<{ Bindings: Cloudflare.Env }>()
         ),
         async (context) => {
             const { mode, hash } = context.req.valid("param")
-            const download = context.req.query("download") !== undefined
-
             const key = [mode, hash].join("/")
             const cacheKey = getCacheKey(key, context.req.raw)
 
-            const exts = {
-                "raw": "png",
-                "thumbs": "webp",
+            const responseHeaders = {
+                "Content-Type": "image/png",
+                "Cache-Control": "public, max-age=31536000, immutable",
             }
-
-            const filename = `${hash}.${exts[mode]}`
 
             // Check cache.
             const cachedResponse = await caches.default.match(cacheKey)
             if (cachedResponse !== undefined) {
-                const reqEtag = context.req.header("If-None-Match")
-                const resEtag = cachedResponse.headers.get("ETag")
-                if (resEtag !== null && reqEtag === resEtag) {
-                    return context.newResponse(null, 304, {
-                        "ETag": resEtag,
-                        "Cache-Control": "public, max-age=31536000, immutable",
-                        "X-Cache": "HIT",
-                        ...download
-                            ? { "Content-Disposition": `attachment; filename="${filename}"` }
-                            : {}
-                    })
-                }
                 return context.newResponse(
                     cachedResponse.body,
                     200,
                     {
                         ...cachedResponse.headers,
+                        ...responseHeaders,
                         "X-Cache": "HIT",
-                        ...download
-                            ? { "Content-Disposition": `attachment; filename="${filename}"` }
-                            : {}
                     }
                 )
             }
@@ -163,31 +145,13 @@ const app = new Hono<{ Bindings: Cloudflare.Env }>()
             // Get image data from object.
             const buffer = await obj.arrayBuffer()
 
-            // Handle ETag for fresh response
-            const reqEtag = context.req.header("If-None-Match")
-            if (reqEtag === key) {
-                return context.newResponse(null, 304, {
-                    "ETag": key,
-                    "Cache-Control": "public, max-age=31536000, immutable",
-                    "X-Cache": "MISS",
-                    ...download
-                        ? { "Content-Disposition": `attachment; filename="${filename}"` }
-                        : {}
-                })
-            }
-
             // Create response with proper headers
             const response = context.newResponse(
                 buffer,
                 200,
                 {
-                    "Content-Type": "image/png",
-                    "Cache-Control": "public, max-age=31536000, immutable",
-                    "ETag": key,
+                    ...responseHeaders,
                     "X-Cache": "MISS",
-                    ...download
-                        ? { "Content-Disposition": `attachment; filename="${filename}"` }
-                        : {}
                 }
             )
 
@@ -202,15 +166,6 @@ const app = new Hono<{ Bindings: Cloudflare.Env }>()
     .post(
         "/images",
         async (context) => {
-            const buffer = await context.req.arrayBuffer()
-
-            // Case: Empty image data.
-            if (!buffer || buffer.byteLength === 0) {
-                return context.json({ message: "Image data required." }, 400)
-            }
-
-            // Calculate hash.
-            const hash = await sha256sum(buffer)
 
             // Get token from header.
             const headers = context.req.header()
@@ -231,6 +186,16 @@ const app = new Hono<{ Bindings: Cloudflare.Env }>()
             if (bucket === undefined || bucket.is_revoked) {
                 return context.json({ message: "Bucket not found." }, 404)
             }
+
+            const buffer = await context.req.arrayBuffer()
+
+            // Case: Empty image data.
+            if (!buffer || buffer.byteLength === 0) {
+                return context.json({ message: "Image data required." }, 400)
+            }
+
+            // Calculate hash.
+            const hash = await sha256sum(buffer)
 
             // Check image already exists.
             const [exists] = await db
@@ -277,7 +242,7 @@ const app = new Hono<{ Bindings: Cloudflare.Env }>()
             })
 
             // OK
-            return context.json({ hash }, 200)
+            return context.json({ message: "OK" }, 200)
         }
     )
 
