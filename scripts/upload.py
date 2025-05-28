@@ -57,6 +57,6 @@ def on_app_started(demo, app):
     print(f"[External Image Viewer] Initialized, All generated images are uploaded to {ENDPOINT}.")
 
 # Add handlers, if apikey provided.
-if API_KEY != None:
+if ENDPOINT != None or API_KEY != None:
     script_callbacks.on_image_saved(handle_image_saved)
     script_callbacks.on_app_started(on_app_started)
