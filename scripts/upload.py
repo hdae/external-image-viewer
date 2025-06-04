@@ -1,62 +1,65 @@
 import io
 import requests
 import os
+import multiprocessing
 from modules import script_callbacks
 from modules import shared
+from concurrent.futures import ThreadPoolExecutor
 
 ENDPOINT = os.getenv("EIV_ENDPOINT")
 API_KEY = os.getenv("EIV_APIKEY")
 
-def post_image_as_png(filename, url):
+max_worker_threads = multiprocessing.cpu_count()
+executor = ThreadPoolExecutor(max_workers=max_worker_threads)
 
-    # Set headers.
+
+def post_image_as_png(filename, url):
     headers = {
         'Content-Type': 'image/png',
         'Authorization': f'Bearer {API_KEY}',
     }
 
-    # Read file.
     with open(filename, 'rb') as f:
         data = f.read()
 
-    # Post to endpoint.
     response = requests.post(
         url=url,
         data=data,
         headers=headers,
-        timeout=30
+        timeout=60
     )
 
-    # Failed to upload.
     if response.status_code != 200:
-        raise Exception(f"Failed to upload ")
+        raise Exception(f"Upload failed with status code {response.status_code}")
 
-    # Success.
     return response
 
-def handle_image_saved(param: script_callbacks.ImageSaveParams):
 
-    # Attempt to convert and upload.
+def _handle_image_saved_async(param: script_callbacks.ImageSaveParams):
+    filename = param.filename
     try:
-        response = post_image_as_png(param.filename, f"{ENDPOINT}/api/images")
-        print(response)
+        response = post_image_as_png(filename, f"{ENDPOINT}/api/images")
 
-        # Logging...
         if hasattr(shared, 'log'):
             if response and response.status_code == 200:
-                shared.log.info(f"[External Image Viewer] Upload successful: {file_name}")
+                shared.log.info(f"[External Image Viewer] Upload successful: {os.path.basename(filename)}")
             else:
-                shared.log.warning(f"[External Image Viewer] Upload failed: {filename}")
+                shared.log.warning(f"[External Image Viewer] Upload failed: {os.path.basename(filename)}")
 
-    # Network error.
     except Exception as error:
         if hasattr(shared, 'log'):
-            shared.log.error(f"[External Image Viewer] Fatal error, upload failed: {str(error)}")
+            shared.log.error(f"[External Image Viewer] Upload error for {os.path.basename(filename)}: {str(error)}")
+
+def handle_image_saved(param: script_callbacks.ImageSaveParams):
+    executor.submit(_handle_image_saved_async, param)
+
 
 def on_app_started(demo, app):
     print(f"[External Image Viewer] Initialized, All generated images are uploaded to {ENDPOINT}.")
+    print(f"[External Image Viewer] Using {max_worker_threads} worker threads for image uploads.")
+
 
 # Add handlers, if apikey provided.
-if ENDPOINT != None or API_KEY != None:
+if ENDPOINT is not None and API_KEY is not None:
     script_callbacks.on_image_saved(handle_image_saved)
     script_callbacks.on_app_started(on_app_started)
