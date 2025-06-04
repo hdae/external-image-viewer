@@ -21,6 +21,28 @@ type Props = {
 }
 
 export const ImageDialog: FC<Props> = ({ image, setCurrentIndex, total }) => {
+    // const download = useCallback(
+    //     async () => {
+
+    //         // Download content
+    //         const response = await fetch(getRawUrl(image.hash))
+
+    //         // Create URL
+    //         const url = URL.createObjectURL(await response.blob())
+
+    //         // Download it.
+    //         const anchor = document.createElement("a")
+    //         anchor.href = url
+    //         anchor.download = `img_${image.id}.png`
+    //         anchor.style.display = "none"
+    //         document.body.appendChild(anchor)
+    //         anchor.click()
+    //         document.body.removeChild(anchor)
+    //         URL.revokeObjectURL(url)
+    //     },
+    //     [image.hash, image.id]
+    // )
+
     const close = useCallback(
         () => setCurrentIndex(undefined),
         [setCurrentIndex]
@@ -176,8 +198,13 @@ export const ImageDialog: FC<Props> = ({ image, setCurrentIndex, total }) => {
                             right="4"
                             direction="row"
                             justify="end"
-                            gap="4"
+                            gap="3"
                         >
+                            {/* <Tooltip content="Download">
+                                <IconButton onClick={download}>
+                                    <DownloadIcon width="20" height="20" />
+                                </IconButton>
+                            </Tooltip> */}
                             <Tooltip content="Close">
                                 <IconButton onClick={close}>
                                     <Cross1Icon width="20" height="20" />

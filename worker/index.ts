@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+
 import { zValidator } from "@hono/zod-validator"
 import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/d1"
@@ -6,30 +8,19 @@ import { getConnInfo } from "hono/cloudflare-workers"
 import { optimizeImage } from "wasm-image-optimization"
 import { z } from "zod"
 import { api_config } from "./config"
-import { get_metadata } from "./lib/png"
 import { bucketsTable, imagesTable } from "./schema"
+import { hashsum } from "./utils/crypto"
+import { get_metadata } from "./utils/get_metadata"
+import { S3Client } from "./utils/s3client"
 
-const sha256sum = async (buffer: ArrayBuffer) => {
-    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    return hashArray
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("")
-}
-
-const getCacheKey = (hash: string, request: Request) => {
-    const url = new URL(request.url)
-    url.pathname = `/image/${hash}`
-    return url.toString()
-}
-
+// @ts-ignore
 const app = new Hono<{ Bindings: Cloudflare.Env }>()
     .basePath("/api")
     .get(
         "/buckets",
         async (context) => {
-            const db = drizzle(context.env.DATABASE)
-            const buckets = await db
+            const database = drizzle(context.env.DATABASE)
+            const buckets = await database
                 .select({
                     id: bucketsTable.id,
                     title: bucketsTable.title,
@@ -40,41 +31,41 @@ const app = new Hono<{ Bindings: Cloudflare.Env }>()
             return context.json({ buckets })
         }
     )
-    .post(
-        "/buckets",
-        zValidator(
-            "json",
-            z.object({
-                title: z.string(),
-                description: z.string(),
-            }),
-        ),
-        async (context) => {
-            const { title, description } = context.req.valid("json")
-            const token = crypto.randomUUID()
-            const db = drizzle(context.env.DATABASE)
-            await db.insert(bucketsTable).values({ title, description, token })
-            return context.json({ title, token })
-        },
-    )
-    .delete(
-        "/buckets/:bucket_id",
-        zValidator(
-            "param",
-            z.object({
-                bucket_id: z.coerce.number(),
-            })
-        ),
-        async (context) => {
-            const { bucket_id } = context.req.valid("param")
-            const db = drizzle(context.env.DATABASE)
-            await db
-                .update(bucketsTable)
-                .set({ is_revoked: true })
-                .where(eq(bucketsTable.id, bucket_id))
-            return context.json({ message: "OK" })
-        }
-    )
+    // .post(
+    //     "/buckets",
+    //     zValidator(
+    //         "json",
+    //         z.object({
+    //             title: z.string(),
+    //             description: z.string(),
+    //         }),
+    //     ),
+    //     async (context) => {
+    //         const { title, description } = context.req.valid("json")
+    //         const token = crypto.randomUUID()
+    //         const database = drizzle(context.env.DATABASE)
+    //         await database.insert(bucketsTable).values({ title, description, token })
+    //         return context.text(token)
+    //     },
+    // )
+    // .delete(
+    //     "/buckets/:bucket_id",
+    //     zValidator(
+    //         "param",
+    //         z.object({
+    //             bucket_id: z.coerce.number(),
+    //         })
+    //     ),
+    //     async (context) => {
+    //         const { bucket_id } = context.req.valid("param")
+    //         const database = drizzle(context.env.DATABASE)
+    //         await database
+    //             .update(bucketsTable)
+    //             .set({ is_revoked: true })
+    //             .where(eq(bucketsTable.id, bucket_id))
+    //         return context.text("OK")
+    //     }
+    // )
     .get(
         "/buckets/:bucket_id/:page",
         zValidator(
@@ -86,126 +77,79 @@ const app = new Hono<{ Bindings: Cloudflare.Env }>()
         ),
         async (context) => {
             const { bucket_id, page } = context.req.valid("param")
-            const db = drizzle(context.env.DATABASE)
+            const database = drizzle(context.env.DATABASE)
 
-            const response = await db
-                .select()
-                .from(imagesTable)
-                .where(eq(imagesTable.bucket_id, bucket_id))
-                .limit(api_config.list_limit)
-                .offset(page * api_config.list_limit)
-
-            const total = await db.$count(
-                imagesTable,
-                eq(imagesTable.bucket_id, bucket_id)
-            )
+            const [response, total] = await Promise.all([
+                database
+                    .select()
+                    .from(imagesTable)
+                    .where(eq(imagesTable.bucket_id, bucket_id))
+                    .limit(api_config.list_limit)
+                    .offset(page * api_config.list_limit),
+                database
+                    .$count(
+                        imagesTable,
+                        eq(imagesTable.bucket_id, bucket_id)
+                    )
+            ] as const)
 
             return context.json({ images: response, total })
         }
     )
-    .get(
-        "/images/:mode/:hash",
-        zValidator(
-            "param",
-            z.object({
-                mode: z.enum(["raw", "thumbs"]),
-                hash: z.string(),
-            })
-        ),
-        async (context) => {
-            const { mode, hash } = context.req.valid("param")
-            const key = [mode, hash].join("/")
-            const cacheKey = getCacheKey(key, context.req.raw)
-
-            const responseHeaders = {
-                "Content-Type": "image/png",
-                "Cache-Control": "public, max-age=31536000, immutable",
-            }
-
-            // Check cache.
-            const cachedResponse = await caches.default.match(cacheKey)
-            if (cachedResponse !== undefined) {
-                return context.newResponse(
-                    cachedResponse.body,
-                    200,
-                    {
-                        ...cachedResponse.headers,
-                        ...responseHeaders,
-                        "X-Cache": "HIT",
-                    }
-                )
-            }
-
-            // Get object from bucket.
-            const obj = await context.env.BUCKET.get(key)
-            if (!obj) {
-                return context.json({ message: "Image not found" }, 404)
-            }
-
-            // Get image data from object.
-            const buffer = await obj.arrayBuffer()
-
-            // Create response with proper headers
-            const response = context.newResponse(
-                buffer,
-                200,
-                {
-                    ...responseHeaders,
-                    "X-Cache": "MISS",
-                }
-            )
-
-            // Cache the response asynchronously (don't block the response)
-            context.executionCtx.waitUntil(
-                caches.default.put(cacheKey, response.clone())
-            )
-
-            return response
-        }
-    )
     .post(
         "/images",
-        async (context) => {
+        async (c) => {
+            const client = new S3Client({
+                endpoint: c.env.S3_ENDPOINT,
+                accessKey: c.env.S3_ACCESS_KEY,
+                secretKey: c.env.S3_SECRET_KEY,
+                bucket: "external-image-viewer",
+                useSSL: true,
+                headers: {
+                    "cf-access-client-id": c.env.CF_CLIENT_ID,
+                    "cf-access-client-secret": c.env.CF_CLIENT_SECRET
+                },
+            })
 
             // Get token from header.
-            const headers = context.req.header()
+            const headers = c.req.header()
             const bearer = headers["authorization"]
             if (bearer === undefined) {
-                return context.json({ message: "Authorization required." }, 403)
+                return c.text("Authorization required.", 403)
             }
             const token = bearer.slice("Bearer ".length)
 
             // Check bucket access.
-            const db = drizzle(context.env.DATABASE)
-            const [bucket] = await db
+            const database = drizzle(c.env.DATABASE)
+            const [bucket] = await database
                 .select()
                 .from(bucketsTable)
                 .where((table) => eq(table.token, token))
 
             // Case: Bucket not found or revoked.
             if (bucket === undefined || bucket.is_revoked) {
-                return context.json({ message: "Bucket not found." }, 404)
+                return c.text("Bucket not found.", 404)
             }
 
-            const buffer = await context.req.arrayBuffer()
+            const buffer = await c.req.arrayBuffer()
 
             // Case: Empty image data.
             if (!buffer || buffer.byteLength === 0) {
-                return context.json({ message: "Image data required." }, 400)
+                return c.text("Image data required.", 400)
             }
 
             // Calculate hash.
-            const hash = await sha256sum(buffer)
+            const hash = await hashsum(buffer)
 
             // Check image already exists.
-            const [exists] = await db
+            const [exists] = await database
                 .select()
                 .from(imagesTable)
                 .where((table) => eq(table.hash, hash))
 
             // Case: Image already exists.
             if (exists !== undefined) {
-                return context.json({ message: "Already exists." }, 409)
+                return c.text("Already exists.", 409)
             }
 
             // Get pnginfo.
@@ -219,30 +163,31 @@ const app = new Hono<{ Bindings: Cloudflare.Env }>()
 
             const thumbs = await optimizeImage({ image: buffer, format: "webp", ...size })
             if (thumbs === undefined) {
-                return context.json({ message: "Failed to create thumbnail." }, 400)
+                return c.text("Failed to create thumbnail.", 400)
             }
-            await context.env.BUCKET.put(["thumbs", hash].join("/"), thumbs)
 
-            // Create item to R2.
-            const obj = await context.env.BUCKET.put(["raw", hash].join("/"), buffer)
-            if (obj === null) {
-                return context.json({ message: "Failed to upload to R2." }, 400)
-            }
+            const res_thumbs = await client.put(["thumbs", hash].join("/"), thumbs, { contentType: "image/webp" })
+            const res_raw = await client.put(["raw", hash].join("/"), buffer, { contentType: "image/png" })
+
+            console.log({
+                res_thumbs: await res_thumbs.text(),
+                res_raw: await res_raw.text(),
+            })
 
             // Get client ip.
-            const conn = getConnInfo(context)
+            const conn = getConnInfo(c)
             const ip = conn.remote.address ?? "(unknown)"
 
-            // Insert to db.
-            await db.insert(imagesTable).values({
-                hash,
+            // Insert to database.
+            await database.insert(imagesTable).values({
+                hash: hash,
                 ip,
                 metadata,
                 bucket_id: bucket.id,
             })
 
             // OK
-            return context.json({ message: "OK" }, 200)
+            return c.text("OK")
         }
     )
 

@@ -21,10 +21,6 @@
 			"custom_domain": true
 		}
 	],
-	"placement": {
-		"hint": "apac",
-		"mode": "smart"
-	},
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -39,22 +35,20 @@
 	"d1_databases": [
 		{
 			"binding": "DATABASE",
-			"database_name": "external-image-viewer",
-			"database_id": "6d1eb137-e738-4171-99b2-c384edcca70a",
+			"database_name": "external-image-viewer-prod",
+			"database_id": "4556ceaf-355c-4a97-9d06-89aa7959b964",
 			"migrations_dir": "./drizzle",
 		}
 	],
-	"r2_buckets": [
-		{
-			"bucket_name": "external-image-viewer",
-			"binding": "BUCKET"
-		}
-	]
 	/**
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
 	// "vars": { "MY_VARIABLE": "production_value" },
+	"vars": {
+		"S3_ENDPOINT": "storage.kokoya.de",
+		"S3_BUCKET": "external-image-viewer"
+	}
 	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/

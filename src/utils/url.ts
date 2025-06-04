@@ -1,2 +1,2 @@
-export const getRawUrl = (hash: string) => `/api/images/raw/${hash}`
-export const getThumbsUrl = (hash: string) => `/api/images/thumbs/${hash}`
+export const getRawUrl = (hash: string) => `https://assets.kokoya.de/external-image-viewer/raw/${hash}`
+export const getThumbsUrl = (hash: string) => `https://assets.kokoya.de/external-image-viewer/thumbs/${hash}`

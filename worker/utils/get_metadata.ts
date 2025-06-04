@@ -7,7 +7,7 @@ export type Chunk = {
     payload: Uint8Array
 }
 
-export function parse(data: Uint8Array): Chunk[] {
+export function parse_png(data: Uint8Array): Chunk[] {
     // Return value
     const chunks = []
 
@@ -70,7 +70,7 @@ export function parse(data: Uint8Array): Chunk[] {
 }
 
 export const get_metadata = (buffer: ArrayBuffer) => {
-    const chunks = parse(new Uint8Array(buffer))
+    const chunks = parse_png(new Uint8Array(buffer))
 
     // Parse IHDR.
     const ihdr = chunks.find((chunk) => chunk.type === "IHDR")?.payload
