@@ -11,6 +11,7 @@ import { createRoot } from "react-dom/client"
 import { Toaster } from "react-hot-toast"
 import { BrowserRouter } from "react-router"
 import { App } from "./App"
+import { Warning } from "./components/Warning"
 
 const root = document.getElementById("root")
 if (root === null) throw new Error("Failed to initialize application.")
@@ -32,6 +33,7 @@ createRoot(root).render(
                         <Portal>
                             <Toaster />
                         </Portal>
+                        <Warning />
                     </Box>
                 </Theme>
             </QueryClientProvider>

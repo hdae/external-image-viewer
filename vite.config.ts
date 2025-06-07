@@ -1,11 +1,11 @@
 import { cloudflare } from "@cloudflare/vite-plugin"
 import react from "@vitejs/plugin-react"
+import { resolve } from 'path'
+import LicensePlugin from "rollup-plugin-license"
 import { defineConfig } from "vite"
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-
-  console.log(mode)
 
   if (mode === "development") {
     return {
@@ -33,6 +33,11 @@ export default defineConfig(({ mode }) => {
           plugins: [
             "babel-plugin-react-compiler"
           ]
+        }
+      }),
+      LicensePlugin({
+        thirdParty: {
+          output: resolve(__dirname, "dist", "LICENSE.txt")
         }
       }),
       cloudflare()
