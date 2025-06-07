@@ -23,22 +23,6 @@ type Props = {
 export const ImageDialog: FC<Props> = ({ image, setCurrentIndex, total }) => {
     // const download = useCallback(
     //     async () => {
-
-    //         // Download content
-    //         const response = await fetch(getRawUrl(image.hash))
-
-    //         // Create URL
-    //         const url = URL.createObjectURL(await response.blob())
-
-    //         // Download it.
-    //         const anchor = document.createElement("a")
-    //         anchor.href = url
-    //         anchor.download = `img_${image.id}.png`
-    //         anchor.style.display = "none"
-    //         document.body.appendChild(anchor)
-    //         anchor.click()
-    //         document.body.removeChild(anchor)
-    //         URL.revokeObjectURL(url)
     //     },
     //     [image.hash, image.id]
     // )
